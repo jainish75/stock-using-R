@@ -1,0 +1,297 @@
+---
+title: "Time Series Forecasting for Stock Prices"
+author: "Jainish Satani"
+format: pdf
+editor: visual
+---
+
+## Time Series Forecasting for Stock Prices
+
+link to data: <https://finance.yahoo.com/quote/SPY/>
+
+![]()
+
+```{r}
+# Install necessary packages
+install.packages(c("quantmod", "forecast", "timeseries", "tseries", "xts"))
+
+# Load the libraries
+library(quantmod)
+library(forecast)
+library(tseries)
+library(xts)
+library(ggplot2)    # For custom visualization
+
+```
+
+```{r}
+# Set the stock symbol and date range
+stock_symbol <- "SPY"  # SPY Inc.
+start_date <- as.Date("2015-01-01")
+end_date <- as.Date(Sys.Date())
+
+# Get stock data using quantmod from yahoo finnace
+getSymbols(stock_symbol, src = "yahoo", from = start_date, to = end_date)
+stock_data <- Cl(get(stock_symbol))  # Get the closing prices
+
+# View the first few rows of data
+head(stock_data)
+class(SPY) #xts/zoo=> data , date
+ # close price for each day(4 columns) 1.open, 2.high 3.low, 4.close 5.volume, 6.adjusted
+
+SPY_Close_Prices = SPY[,4]
+plot(SPY_Close_Prices)
+class(SPY_Close_Prices)
+
+```
+
+```{r}
+#graph ACF and PACF for identifiable laggs pacf->p acf->q for cussum arimas
+par(mfrow=c(1,2))
+Acf(SPY_Close_Prices, main="ACF For Differenced Series")
+Pacf(SPY_Close_Prices, main="Pacf For Differenced Series")
+```
+
+```{r}
+#test finding on original xts objects
+#ADF test fro p-value
+print(adf.test(SPY_Close_Prices))#p-value=0.228
+auto.arima(SPY_Close_Prices,seasonal = FALSE) #Arima 3,1,4 AIC/BIC =5990/6038
+```
+
+```{r}
+fitA=auto.arima(SPY_Close_Prices,seasonal = FALSE) #auto Arima 3,1,4 AIC/BIC =5990/6038
+tsdisplay(residuals(fitA), lag.max=40, main = '(3,1,4) Model Residuals')
+auto.arima(SPY_Close_Prices,seasonal = FALSE) 
+
+fitB=arima(SPY_Close_Prices, order=c(1,2,4)) #custom Arima 3,1,4 AIC/BIC =5990/6038
+tsdisplay(residuals(fitB), lag.max=40, main = '(1,2,4) Model Residuals')
+
+fitC=arima(SPY_Close_Prices, order=c(5,1,4)) 
+tsdisplay(residuals(fitB), lag.max=40, main = '(5,1,4) Model Residuals')
+#standard defective default
+fitD=arima(SPY_Close_Prices, order=c(1,1,1)) 
+tsdisplay(residuals(fitB), lag.max=40, main = '(1,1,1) Model Residuals')
+
+```
+
+```{r}
+
+par(mfrow=c(2,2))
+#auto arima
+term<-100
+fcast1<-forecast(fitA, h=term)
+plot(fcast1)
+#custom arima
+fcast2<-forecast(fitB, h=term)
+plot(fcast2)
+fcast3<-forecast(fitC, h=term)
+plot(fcast3)
+fcast4<-forecast(fitD, h=term)
+plot(fcast4)
+```
+
+```{r}
+#Mape=mean accuracy o accuracy subtract from 100
+accuracy(fcast1)
+accuracy(fcast2)
+accuracy(fcast3)
+accuracy(fcast4)
+```
+
+# **Stock analysis** 
+
+## 1. import library
+
+```{r}
+library(quantmod)   # To fetch stock data
+library(forecast)   # For ARIMA modeling
+library(tseries)    # For stationarity tests
+library(prophet)    # For Prophet model
+library(ggplot2)    # For custom visualization
+```
+
+```{r}
+# get stock data from Yahoo Finance using getsymbols
+getSymbols("AAPL", src = "yahoo", from = "2015-01-01", to = Sys.Date())
+stock_data <- Cl(AAPL)  # Extract closing prices
+head(stock_data)
+```
+
+## 2. Visualization of Raw Stock Data
+
+```{r}
+# Convert to data frame for ggplot
+stock_df <- data.frame(Date = index(stock_data), Price = as.numeric(stock_data))
+
+# Plot closing prices over time
+ggplot(stock_df, aes(x = Date, y = Price)) +
+  geom_line(color = "blue") +
+  labs(title = "AAPL Stock Closing Prices", x = "Date", y = "Closing Price") +
+  theme_minimal()
+
+```
+
+## 3. Stationarity Check using Augmented Dickey-Fuller (ADF) before applying time series model.
+
+```{r}
+# Perform Augmented Dickey-Fuller Test to check for stationarity
+adf_test <- adf.test(stock_data)
+print(adf_test)
+
+```
+
+P-value needs to be p-value\<0.05, which is not so need difference data.
+
+## Visualizing Differenced Data
+
+```{r}
+# First difference to remove trend
+stock_diff <- diff(stock_data)
+
+# Plot the differenced series
+stock_diff_df <- data.frame(Date = index(stock_diff), Price = as.numeric(stock_diff))
+
+ggplot(stock_diff_df, aes(x = Date, y = Price)) +
+  geom_line(color = "red") +
+  labs(title = "Differenced AAPL Stock Prices", x = "Date", y = "Differenced Closing Price") +
+  theme_minimal()
+
+```
+
+## 4. Decompose the Time Series
+
+```{r}
+# Convert to time series object
+stock_ts <- ts(as.numeric(stock_data), frequency = 252)  # 252 trading days in a year
+
+# Decompose the time series
+decomposed <- decompose(stock_ts)
+
+# Plot the decomposed components
+plot(decomposed)
+
+```
+
+Observations from graph:
+
+-   **Trend**: Direction is going up.
+
+-   **Seasonal**: Repeating patterns over specific intervals , samepattern following.
+
+-   **Random**: Residual noise.
+
+## 5. ARIMA model Auto
+
+```{r}
+# Fit ARIMA model to the data
+arima_model <- auto.arima(stock_ts)
+
+# Summary of the model
+summary(arima_model)
+
+```
+
+#### **Residual Diagnostics for ARIMA**
+
+```{r}
+# Residual diagnostics plots
+checkresiduals(arima_model)
+
+```
+
+#### **ARIMA Forecast and Visualization**
+
+```{r}
+# Forecast for the next 30 trading days
+arima_forecast <- forecast(arima_model, h = 30)
+
+# Plot the forecast with confidence intervals
+autoplot(arima_forecast) +
+  labs(title = "AAPL Stock Price Forecast (ARIMA)", x = "Date", y = "Closing Price") +
+  theme_minimal()
+
+```
+
+## 6. Prophet Model
+
+```{r}
+# Prepare data for Prophet
+prophet_df <- data.frame(ds = index(stock_data), y = as.numeric(stock_data))
+
+# Fit Prophet model
+prophet_model <- prophet(prophet_df, daily.seasonality = TRUE)
+
+```
+
+#### **Forecast Using Prophet**
+
+Prophet can forecast future values and detect trends and seasonality.
+
+```{r}
+# Create future dates for the next 30 trading days
+future_dates <- make_future_dataframe(prophet_model, periods = 30)
+
+# Predict future stock prices
+prophet_forecast <- predict(prophet_model, future_dates)
+
+# Plot the forecast
+plot(prophet_model, prophet_forecast) +
+  labs(title = "AAPL Stock Price Forecast (Prophet)", x = "Date", y = "Closing Price")
+
+```
+
+#### **Prophet Components (Trend, Seasonality)**
+
+```{r}
+# Plot components: trend, seasonality
+prophet_plot_components(prophet_model, prophet_forecast)
+
+```
+
+### **7: Model Evaluation**
+
+accuracy for ARIMA and prophet models using metrics like MAE- mean absolute error and RMSE
+
+```{r}
+# ARIMA accuracy
+arima_accuracy <- accuracy(arima_forecast)
+
+# Prophet accuracy (compare predicted with actual)
+actual_values <- tail(prophet_df$y, 30)
+predicted_values <- tail(prophet_forecast$yhat, 30)
+
+# Calculate MAE for Prophet
+mae_prophet <- mean(abs(actual_values - predicted_values))
+
+# Print the results
+cat("ARIMA MAE: ", arima_accuracy[2], "\n")
+cat("Prophet MAE: ", mae_prophet, "\n")
+
+```
+
+Key Observations:
+
+1.  ARIMA Model:
+
+    coefficient=0.081, with std. error of 0.0392=\> Showing **slight Upward Trend**
+
+    MAE=1.93, which indicates on average , ARIMA model is off by 1.94 units in predicting stock price
+
+    AIC =10185.24, which is lower so suitable for model.
+
+2.  Prophet model:
+
+    MAE = 10.065, which is very higher than ARIMA model's MAE, So prophet model is performing worse.
+
+Analysis:
+
+1.  ARIMA(0,1,0) with drift: slight upward trend
+
+    suitable model for financial data
+
+    low MAE and RMSE which is good with minimal error
+
+2.  Prophet model:it is struggling with this data because emphasize on trend and seasonality, which is showing difficulty in stock price data.
+
+Result: ARIMA wins: It's more accurate for this data set than prophet. it can also handle easily random fluctuations.
