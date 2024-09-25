@@ -3,14 +3,6 @@
 ## Overview
 This project aims to analyze the historical stock prices of Apple Inc. (AAPL) using R. The analysis includes data visualization and statistical metrics to uncover trends and insights that can assist in investment decisions.
 
-## Table of Contents
-- [Installation](#installation)
-- [Data](#data)
-- [Analysis](#analysis)
-- [Results](#results)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Installation
 To get started, clone this repository to your local machine and install the required R packages:
